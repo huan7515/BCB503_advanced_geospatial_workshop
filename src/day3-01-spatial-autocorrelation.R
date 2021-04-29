@@ -77,9 +77,33 @@ state<-shapefile(paste0(dataFolder,"STATE_ATLANTIC.shp"))
 df<-read.csv(paste0(dataFolder,"data_atlantic_1998_2012.csv"), header=T)
 
 
+
+
+
+
+
+
 df[6] <- lapply(df[6], as.numeric) # Rate data to numeric
 SPDF<-merge(COUNTY,df, by="FIPS")
 names(SPDF)
+
+col.palette.1<-colorRampPalette(c("blue","sky blue", "yellow", "yellow3","orange", "red", "red3"),space="rgb",interpolate = "linear")
+
+mortality <-spplot(SPDF, "Rate", main="Mortality Rate", 
+           col.regions=col.palette.1(100))
+
+NO2 <-spplot(SPDF, "NO2", main="NO2", 
+                   col.regions=col.palette.1(100))
+
+SO2 <-spplot(SPDF, "SO2", main="SO2", 
+             col.regions=col.palette.1(100))
+
+SMOKING <-spplot(SPDF, "SMOK", main="SMOKING", 
+             col.regions=col.palette.1(100))
+
+PM25 <-spplot(SPDF, "PM25", main="PM25", 
+                 col.regions=col.palette.1(100))
+
 
 #calculate a basic variogram from the direct Rate data
 SPDF_df <- as.data.frame(SPDF)
@@ -151,6 +175,8 @@ neighbourhood_weights_list <- nb2listw(neighbourhood, style="W", zero.policy=TRU
 #check the weights for a single county
 neighbourhood_weights_list$weights[1]
 
+#totals to one
+sum(as.data.frame(neighbourhood_weights_list$weights[1]))
 
 
 #Manual calc of Morans I
@@ -189,6 +215,7 @@ gobal.moran.mc <- moran.mc(SPDF$Rate,
                            nsim=599)
 
 # View results (including p-value)
+
 gobal.moran.mc
 
 

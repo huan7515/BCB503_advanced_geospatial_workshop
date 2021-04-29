@@ -4,6 +4,8 @@
 #Data Carpentry Advanced Geospatial Analysis
 #Instructors: Erich Seamon, University of Idaho - Li Huang, University of Idaho
 
+#dyn.load("/opt/modules/climatology/gdal/3.0.2/lib/libgdal.so")
+#library(sf, lib="/mnt/lfs2/erichs/R/x86_64-pc-linux-gnu-library/3.6/")
 library(caret)        # machine laerning
 library(randomForest) # Random Forest
 library(rgdal)        # spatial data processing
@@ -22,6 +24,10 @@ dataFolder<-"data/"
 
 train.df<-read.csv(paste0(dataFolder,"Sentinel2/train_data.csv"), header = T)
 test.df<-read.csv(paste0(dataFolder,"Sentinel2/test_data.csv"), header = T)
+
+train.df$Landuse <- as.factor(train.df$Landuse)
+test.df$Landuse <- as.factor(test.df$Landuse)
+
 
 mc <- makeCluster(detectCores())
 registerDoParallel(mc)
@@ -42,8 +48,30 @@ fit.rf <- train(as.factor(Landuse)~B2+B3+B4+B4+B6+B7+B8+B8A+B11+B12,
                 trControl = myControl
 )
 
+# 
+# Cohen’s kappa statistic is a measure that 
+# can handle both multi-class and imbalanced class problems.
+
 
 fit.rf 
+
+importance <- varImp(fit.rf, scale=FALSE)
+plot(importance)
+
+#another interesting method - recursive feature elimination
+
+control <- rfeControl(functions=rfFuncs, method="cv", number=10)
+# run the RFE algorithm
+results <- rfe(train.df[,3:12], as.factor(train.df[,14]), sizes=c(1:9), rfeControl=control)
+
+# RFE is a wrapper-type feature selection algorithm. This means that 
+# a different machine learning algorithm is given and used in the 
+# core of the method, is wrapped by RFE, and used to help select 
+# features. This is in contrast to filter-based feature selections 
+# that score each feature and select those features with the largest 
+# (or smallest) score.
+
+
 
 stopCluster(mc)
 p1<-predict(fit.rf, train.df, type = "raw")
@@ -54,11 +82,14 @@ confusionMatrix(p2, test.df$Landuse)
 
 # read grid CSV file
 grid.df<-read.csv(paste0(dataFolder,"Sentinel2/prediction_grid_data.csv"), header = T) 
-# Preddict at grid location
+# Predict at grid location
 p3<-as.data.frame(predict(fit.rf, grid.df, type = "raw"))
+#evaluate the probability of the classification
+p4 <- predict(fit.rf, newdata = grid.df, type = "prob")
+
 # Extract predicted landuse class
 grid.df$Landuse<-p3$predict  
-# Import lnaduse ID file 
+# Import landuse ID file 
 ID<-read.csv(paste0(dataFolder,"Sentinel2/Landuse_ID.csv"), header=T)
 # Join landuse ID
 grid.new<-join(grid.df, ID, by="Landuse", type="inner") 
